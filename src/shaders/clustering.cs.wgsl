@@ -21,3 +21,19 @@
 //         - Stop adding lights if the maximum number of lights is reached.
 
 //     - Store the number of lights assigned to this cluster.
+
+struct ClusterSize {
+    x: u32,
+    y: u32,
+    z: u32,
+};
+
+@group(0) @binding(0) var<uniform> clusterSize: ClusterSize;
+
+// Workgroup sizes x, y, and z are determined in shaders.ts via getClusteringComputeSrc
+@compute @workgroup_size(${x}, ${y}, ${z})
+fn main(@builtin(global_invocation_id) global: vec3u) {
+    let offsetX = global.x;
+    let offsetY = global.y;
+    let offsetZ = global.z;
+}
