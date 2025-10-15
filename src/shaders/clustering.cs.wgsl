@@ -23,6 +23,7 @@
 //     - Store the number of lights assigned to this cluster.
 
 @group(0) @binding(0) var<uniform> cameraUniforms: CameraUniforms;
+@group(0) @binding(1) var<uniform> dimensions: vec3u;
 
 const clusterSizeX: u32 = ${clusterSize.x};
 const clusterSizeY: u32 = ${clusterSize.y};
@@ -35,7 +36,7 @@ const clusterSizeZ: u32 = ${clusterSize.z};
     ${clusteringWorkgroupSize.z}
 )
 fn main(@builtin(global_invocation_id) offset: vec3u) {
-    let offsetX = offset.x;
-    let offsetY = offset.y;
-    let offsetZ = offset.z;
+    let width = dimensions.x;
+    let height = dimensions.y;
+    let depth = dimensions.z;
 }

@@ -31,6 +31,8 @@ export class Lights {
   // TODO-2: add layouts, pipelines, textures, etc. needed for light clustering here
   maxDepth: number;
 
+  dimensionsUniformBuffer: GPUBuffer;
+
   clusteringComputeBindGroupLayout: GPUBindGroupLayout;
   clusteringComputeBindGroup: GPUBindGroup;
   clusteringComputePipeline: GPUComputePipeline;
@@ -105,6 +107,14 @@ export class Lights {
     // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
     this.maxDepth = 100;
 
+    this.dimensionsUniformBuffer = device.createBuffer({
+      size: 3 * Uint32Array.BYTES_PER_ELEMENT,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    const dimensions = new Uint32Array([canvas.width, canvas.height, this.maxDepth]);
+    device.queue.writeBuffer(this.dimensionsUniformBuffer, 0, dimensions);
+
+    console.log(`Dimensions: X ${dimensions[0]} / Y ${dimensions[1]} / Z ${dimensions[2]}`);
     console.log("Cluster size:", constants.clusterSize);
 
     this.clusteringComputeBindGroupLayout = device.createBindGroupLayout({
@@ -113,6 +123,12 @@ export class Lights {
         {
           // Camera uniforms
           binding: 0,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: "uniform" },
+        },
+        {
+          // Dimensions uniform
+          binding: 1,
           visibility: GPUShaderStage.COMPUTE,
           buffer: { type: "uniform" },
         },
@@ -126,6 +142,10 @@ export class Lights {
         {
           binding: 0,
           resource: { buffer: this.camera.uniformsBuffer },
+        },
+        {
+          binding: 1,
+          resource: { buffer: this.dimensionsUniformBuffer },
         },
       ],
     });
@@ -165,6 +185,12 @@ export class Lights {
     // implementing clustering here allows for reusing the code in both Forward+ and Clustered Deferred
     const computePass = encoder.beginComputePass();
 
+    // Currently, the canvas width and height never changes, even during window resize.
+    // So doing this work is a little pointless. But it will come in handy if we ever
+    // implement canvas resizing when the browser window size changes!
+    const dimensions = new Uint32Array([canvas.width, canvas.height, this.maxDepth]);
+    device.queue.writeBuffer(this.dimensionsUniformBuffer, 0, dimensions);
+
     computePass.setPipeline(this.clusteringComputePipeline);
     computePass.setBindGroup(0, this.clusteringComputeBindGroup);
 
@@ -174,14 +200,16 @@ export class Lights {
       z: constants.clusteringWorkgroupSize.z * constants.clusterSize.z,
     };
 
-    console.log("Total cluster size:", totalClusterSize);
-    console.log(`Canvas width: ${canvas.width}, ${canvas.height}`);
-
     const numX = Math.ceil(canvas.width / totalClusterSize.x);
     const numY = Math.ceil(canvas.width / totalClusterSize.y);
     const numZ = Math.ceil((this.maxDepth - Camera.nearPlane) / totalClusterSize.z);
 
-    console.log(`Number of workgroups dispatched: X ${numX} / Y ${numY} / Z ${numZ}`);
+    console.log(`Stats:
+- Dimensions: X ${dimensions[0]} / Y ${dimensions[1]} / Z ${dimensions[2]}
+- Cluster size: X ${constants.clusterSize.x} / Y ${constants.clusterSize.y} / Z ${constants.clusterSize.z}
+- Workgroup size: X ${constants.clusteringWorkgroupSize.x} / Y ${constants.clusteringWorkgroupSize.y} / Z ${constants.clusteringWorkgroupSize.z}
+- Total cluster size: X ${totalClusterSize.x} / Y ${totalClusterSize.y} / Z ${totalClusterSize.z}
+- Number of workgroups dispatched: X ${numX} / Y ${numY} / Z ${numZ}`);
 
     computePass.dispatchWorkgroups(numX, numY, numZ);
     computePass.end();
