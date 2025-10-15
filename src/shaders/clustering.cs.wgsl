@@ -25,9 +25,7 @@
 @group(0) @binding(0) var<uniform> cameraUniforms: CameraUniforms;
 @group(0) @binding(1) var<uniform> dimensions: vec3u;
 
-const clusterSizeX: u32 = ${clusterSize.x};
-const clusterSizeY: u32 = ${clusterSize.y};
-const clusterSizeZ: u32 = ${clusterSize.z};
+const clusterSize = vec3u(${clusterSize.x}, ${clusterSize.y}, ${clusterSize.z});
 
 @compute
 @workgroup_size(
@@ -39,4 +37,12 @@ fn main(@builtin(global_invocation_id) offset: vec3u) {
     let width = dimensions.x;
     let height = dimensions.y;
     let depth = dimensions.z;
+
+    let minScreen = offset * clusterSize;
+
+    if (minScreen.x >= width || minScreen.y >= height || minScreen.z > depth) {
+        return;
+    }
+
+    let maxScreen = (offset + vec3u(1.f)) * clusterSize;
 }
