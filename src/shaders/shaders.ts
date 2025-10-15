@@ -50,9 +50,7 @@ export const naiveFragSrc: string = processShaderRaw(naiveFragRaw);
 
 export const forwardPlusFragSrc: string = processShaderRaw(forwardPlusFragRaw);
 
-export const clusteredDeferredFragSrc: string = processShaderRaw(
-  clusteredDeferredFragRaw
-);
+export const clusteredDeferredFragSrc: string = processShaderRaw(clusteredDeferredFragRaw);
 export const clusteredDeferredFullscreenVertSrc: string = processShaderRaw(
   clusteredDeferredFullscreenVertRaw
 );
@@ -60,7 +58,5 @@ export const clusteredDeferredFullscreenFragSrc: string = processShaderRaw(
   clusteredDeferredFullscreenFragRaw
 );
 
-export const moveLightsComputeSrc: string =
-  processShaderRaw(moveLightsComputeRaw);
-export const clusteringComputeSrc: string =
-  processShaderRaw(clusteringComputeRaw);
+export const moveLightsComputeSrc: string = processShaderRaw(moveLightsComputeRaw);
+export const clusteringComputeSrc: string = processShaderRaw(clusteringComputeRaw);

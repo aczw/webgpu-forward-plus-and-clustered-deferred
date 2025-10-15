@@ -86,17 +86,12 @@ export class Camera {
 
     this.cameraFront = vec3.normalize(front);
     this.cameraRight = vec3.normalize(vec3.cross(this.cameraFront, [0, 1, 0]));
-    this.cameraUp = vec3.normalize(
-      vec3.cross(this.cameraRight, this.cameraFront)
-    );
+    this.cameraUp = vec3.normalize(vec3.cross(this.cameraRight, this.cameraFront));
   }
 
   private onMouseMove(event: MouseEvent) {
     if (document.pointerLockElement === canvas) {
-      this.rotateCamera(
-        event.movementX * this.sensitivity,
-        event.movementY * this.sensitivity
-      );
+      this.rotateCamera(event.movementX * this.sensitivity, event.movementY * this.sensitivity);
     }
   }
 

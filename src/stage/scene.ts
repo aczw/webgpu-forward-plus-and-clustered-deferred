@@ -16,11 +16,7 @@ import {
 } from "@loaders.gl/gltf";
 import { ImageLoader } from "@loaders.gl/images";
 import { Mat4, mat4 } from "wgpu-matrix";
-import {
-  device,
-  materialBindGroupLayout,
-  modelBindGroupLayout,
-} from "../renderer";
+import { device, materialBindGroupLayout, modelBindGroupLayout } from "../renderer";
 
 export function setupLoaders() {
   registerLoaders([GLTFLoader, ImageLoader]);
@@ -31,15 +27,8 @@ function getFloatArray(gltfWithBuffers: GLTFWithBuffers, attribute: number) {
   const accessor = gltf.accessors![attribute];
   const bufferView = gltf.bufferViews![accessor.bufferView!];
   const buffer = gltfWithBuffers.buffers[bufferView.buffer];
-  const byteOffset =
-    (accessor.byteOffset ?? 0) +
-    (bufferView.byteOffset ?? 0) +
-    buffer.byteOffset;
-  return new Float32Array(
-    buffer.arrayBuffer,
-    byteOffset,
-    bufferView.byteLength / 4
-  );
+  const byteOffset = (accessor.byteOffset ?? 0) + (bufferView.byteOffset ?? 0) + buffer.byteOffset;
+  return new Float32Array(buffer.arrayBuffer, byteOffset, bufferView.byteLength / 4);
 }
 
 class Texture {
@@ -61,8 +50,7 @@ export class Material {
   constructor(gltfMaterial: GLTFMaterial, textures: Texture[]) {
     this.id = Material.nextId++;
 
-    const diffuseTexture =
-      textures[gltfMaterial.pbrMetallicRoughness!.baseColorTexture!.index];
+    const diffuseTexture = textures[gltfMaterial.pbrMetallicRoughness!.baseColorTexture!.index];
 
     this.materialBindGroup = device.createBindGroup({
       label: "material bind group",
@@ -88,11 +76,7 @@ export class Primitive {
 
   material: Material;
 
-  constructor(
-    gltfPrim: GLTFMeshPrimitive,
-    gltfWithBuffers: GLTFWithBuffers,
-    material: Material
-  ) {
+  constructor(gltfPrim: GLTFMeshPrimitive, gltfWithBuffers: GLTFWithBuffers, material: Material) {
     this.material = material;
 
     const gltf = gltfWithBuffers.json;
@@ -110,11 +94,7 @@ export class Primitive {
     switch (indicesDataType) {
       case 0x1403: // UNSIGNED_SHORT
         indicesArray = Uint32Array.from(
-          new Uint16Array(
-            indicesBuffer.arrayBuffer,
-            indicesByteOffset,
-            indicesAccessor.count
-          )
+          new Uint16Array(indicesBuffer.arrayBuffer, indicesByteOffset, indicesAccessor.count)
         );
         break;
       case 0x1405: // UNSIGNED_INT (untested)
@@ -126,24 +106,13 @@ export class Primitive {
         break;
       default:
         throw new Error(
-          `unsupported index buffer element component type: 0x${indicesDataType.toString(
-            16
-          )}`
+          `unsupported index buffer element component type: 0x${indicesDataType.toString(16)}`
         );
     }
 
-    const positionsArray = getFloatArray(
-      gltfWithBuffers,
-      gltfPrim.attributes.POSITION
-    );
-    const normalsArray = getFloatArray(
-      gltfWithBuffers,
-      gltfPrim.attributes.NORMAL
-    );
-    const uvsArray = getFloatArray(
-      gltfWithBuffers,
-      gltfPrim.attributes.TEXCOORD_0
-    );
+    const positionsArray = getFloatArray(gltfWithBuffers, gltfPrim.attributes.POSITION);
+    const normalsArray = getFloatArray(gltfWithBuffers, gltfPrim.attributes.NORMAL);
+    const uvsArray = getFloatArray(gltfWithBuffers, gltfPrim.attributes.TEXCOORD_0);
 
     const numFloatsPerVert = 8;
     const numVerts = positionsArray.length / 3;
@@ -181,18 +150,10 @@ export class Primitive {
 export class Mesh {
   primitives: Primitive[] = [];
 
-  constructor(
-    gltfMesh: GLTFMesh,
-    gltfWithBuffers: GLTFWithBuffers,
-    sceneMaterials: Material[]
-  ) {
+  constructor(gltfMesh: GLTFMesh, gltfWithBuffers: GLTFWithBuffers, sceneMaterials: Material[]) {
     gltfMesh.primitives.forEach((gltfPrim: GLTFMeshPrimitive) => {
       this.primitives.push(
-        new Primitive(
-          gltfPrim,
-          gltfWithBuffers,
-          sceneMaterials[gltfPrim.material!]
-        )
+        new Primitive(gltfPrim, gltfWithBuffers, sceneMaterials[gltfPrim.material!])
       );
     });
 
@@ -301,9 +262,7 @@ function createSampler(gltfSampler: GLTFSampler): GPUSampler {
       samplerDescriptor.magFilter = "linear";
       break;
     default:
-      throw new Error(
-        `unsupported magFilter: 0x${gltfSampler.magFilter!.toString(16)}`
-      );
+      throw new Error(`unsupported magFilter: 0x${gltfSampler.magFilter!.toString(16)}`);
   }
 
   switch (gltfSampler.minFilter) {
@@ -330,9 +289,7 @@ function createSampler(gltfSampler: GLTFSampler): GPUSampler {
       samplerDescriptor.mipmapFilter = "linear";
       break;
     default:
-      throw new Error(
-        `unsupported minFilter: 0x${gltfSampler.minFilter!.toString(16)}`
-      );
+      throw new Error(`unsupported minFilter: 0x${gltfSampler.minFilter!.toString(16)}`);
   }
 
   samplerDescriptor.addressModeU = convertWrapModeEnum(gltfSampler.wrapS!);
@@ -366,10 +323,7 @@ export class Scene {
 
       for (let gltfTexture of gltf.textures!) {
         sceneTextures.push(
-          new Texture(
-            sceneImages[gltfTexture.source!],
-            sceneSamplers[gltfTexture.sampler!]
-          )
+          new Texture(sceneImages[gltfTexture.source!], sceneSamplers[gltfTexture.sampler!])
         );
       }
     }
@@ -402,24 +356,15 @@ export class Scene {
         newNode.transform = new Float32Array(gltfNode.matrix);
       } else {
         if (gltfNode.translation != undefined) {
-          newNode.transform = mat4.mul(
-            newNode.transform,
-            mat4.translation(gltfNode.translation)
-          );
+          newNode.transform = mat4.mul(newNode.transform, mat4.translation(gltfNode.translation));
         }
 
         if (gltfNode.rotation != undefined) {
-          newNode.transform = mat4.mul(
-            newNode.transform,
-            mat4.fromQuat(gltfNode.rotation)
-          );
+          newNode.transform = mat4.mul(newNode.transform, mat4.fromQuat(gltfNode.rotation));
         }
 
         if (gltfNode.scale != undefined) {
-          newNode.transform = mat4.mul(
-            newNode.transform,
-            mat4.scaling(gltfNode.scale)
-          );
+          newNode.transform = mat4.mul(newNode.transform, mat4.scaling(gltfNode.scale));
         }
       }
 

@@ -8,11 +8,7 @@ import {
   context,
   canvas,
 } from "../renderer";
-import {
-  naiveVertSrc,
-  forwardPlusFragSrc,
-  constants,
-} from "../shaders/shaders";
+import { naiveVertSrc, forwardPlusFragSrc, constants } from "../shaders/shaders";
 import { Stage } from "../stage/stage";
 
 export class ForwardPlusRenderer extends Renderer {
@@ -131,19 +127,12 @@ export class ForwardPlusRenderer extends Renderer {
     });
     renderPass.setPipeline(this.pipeline);
 
-    renderPass.setBindGroup(
-      constants.bindGroup_scene,
-      this.sceneUniformsBindGroup
-    );
+    renderPass.setBindGroup(constants.bindGroup_scene, this.sceneUniformsBindGroup);
 
     this.scene.iterate(
-      (node) =>
-        renderPass.setBindGroup(constants.bindGroup_model, node.modelBindGroup),
+      (node) => renderPass.setBindGroup(constants.bindGroup_model, node.modelBindGroup),
       (material) =>
-        renderPass.setBindGroup(
-          constants.bindGroup_material,
-          material.materialBindGroup
-        ),
+        renderPass.setBindGroup(constants.bindGroup_material, material.materialBindGroup),
       (primitive) => {
         renderPass.setVertexBuffer(0, primitive.vertexBuffer);
         renderPass.setIndexBuffer(primitive.indexBuffer, "uint32");
