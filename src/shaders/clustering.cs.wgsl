@@ -22,13 +22,11 @@
 
 //     - Store the number of lights assigned to this cluster.
 
-struct ClusterSize {
-    x: u32,
-    y: u32,
-    z: u32,
-};
+@group(0) @binding(0) var<uniform> cameraUniforms: CameraUniforms;
 
-@group(0) @binding(0) var<uniform> clusterSize: ClusterSize;
+const clusterSizeX: u32 = ${clusterSize.x};
+const clusterSizeY: u32 = ${clusterSize.y};
+const clusterSizeZ: u32 = ${clusterSize.z};
 
 @compute
 @workgroup_size(
@@ -36,8 +34,8 @@ struct ClusterSize {
     ${clusteringWorkgroupSize.y},
     ${clusteringWorkgroupSize.z}
 )
-fn main(@builtin(global_invocation_id) global: vec3u) {
-    let offsetX = global.x;
-    let offsetY = global.y;
-    let offsetZ = global.z;
+fn main(@builtin(global_invocation_id) offset: vec3u) {
+    let offsetX = offset.x;
+    let offsetY = offset.y;
+    let offsetZ = offset.z;
 }

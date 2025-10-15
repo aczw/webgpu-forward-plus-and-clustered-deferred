@@ -30,6 +30,12 @@ export const constants = {
 
   lightRadius: 2,
 
+  clusterSize: {
+    x: 128, // Screen pixels
+    y: 128, // Screen pixels
+    z: 32,
+  },
+
   clusteringWorkgroupSize: {
     x: 4,
     y: 4,

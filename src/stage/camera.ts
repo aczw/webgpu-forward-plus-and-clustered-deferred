@@ -37,7 +37,7 @@ export class Camera {
 
   constructor() {
     this.uniformsBuffer = device.createBuffer({
-      label: "[Camera] View projection matrix",
+      label: "[Camera] Camera uniforms buffer",
       size: this.uniforms.buffer.byteLength,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });

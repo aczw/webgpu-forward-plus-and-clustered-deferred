@@ -2,7 +2,6 @@ import { vec3 } from "wgpu-matrix";
 
 import { canvas, device } from "../renderer";
 import { Camera } from "./camera";
-import type { ClusterSize } from "../types";
 import { constants, moveLightsComputeSrc, clusteringComputeSrc } from "../shaders/shaders";
 
 // h in [0, 1]
@@ -31,9 +30,6 @@ export class Lights {
 
   // TODO-2: add layouts, pipelines, textures, etc. needed for light clustering here
   maxDepth: number;
-
-  clusterSize: ClusterSize;
-  clusterSizeUniformBuffer: GPUBuffer;
 
   clusteringComputeBindGroupLayout: GPUBindGroupLayout;
   clusteringComputeBindGroup: GPUBindGroup;
@@ -109,30 +105,13 @@ export class Lights {
     // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
     this.maxDepth = 100;
 
-    this.clusterSize = {
-      x: 128, // Screen pixels
-      y: 128, // Screen pixels
-      z: 32,
-    };
-
-    console.log("Cluster size:", this.clusterSize);
-
-    this.clusterSizeUniformBuffer = device.createBuffer({
-      label: "Cluster size uniform buffer",
-      size: 3 * Uint32Array.BYTES_PER_ELEMENT,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
-    const clusterSizeValues = new Uint32Array([
-      this.clusterSize.x,
-      this.clusterSize.y,
-      this.clusterSize.z,
-    ]);
-    device.queue.writeBuffer(this.clusterSizeUniformBuffer, 0, clusterSizeValues);
+    console.log("Cluster size:", constants.clusterSize);
 
     this.clusteringComputeBindGroupLayout = device.createBindGroupLayout({
       label: "Clustering compute bind group layout",
       entries: [
         {
+          // Camera uniforms
           binding: 0,
           visibility: GPUShaderStage.COMPUTE,
           buffer: { type: "uniform" },
@@ -146,7 +125,7 @@ export class Lights {
       entries: [
         {
           binding: 0,
-          resource: { buffer: this.clusterSizeUniformBuffer },
+          resource: { buffer: this.camera.uniformsBuffer },
         },
       ],
     });
@@ -190,9 +169,9 @@ export class Lights {
     computePass.setBindGroup(0, this.clusteringComputeBindGroup);
 
     const totalClusterSize = {
-      x: constants.clusteringWorkgroupSize.x * this.clusterSize.x,
-      y: constants.clusteringWorkgroupSize.y * this.clusterSize.y,
-      z: constants.clusteringWorkgroupSize.z * this.clusterSize.z,
+      x: constants.clusteringWorkgroupSize.x * constants.clusterSize.x,
+      y: constants.clusteringWorkgroupSize.y * constants.clusterSize.y,
+      z: constants.clusteringWorkgroupSize.z * constants.clusterSize.z,
     };
 
     console.log("Total cluster size:", totalClusterSize);
