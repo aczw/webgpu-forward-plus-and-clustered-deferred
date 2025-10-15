@@ -1,14 +1,9 @@
 import { vec3 } from "wgpu-matrix";
 
-import { device } from "../renderer";
+import { canvas, device } from "../renderer";
 import { Camera } from "./camera";
 import type { ClusterSize } from "../types";
-import {
-  constants,
-  getClusteringComputeSrc,
-  getClusteringComputeWorkgroupSizes,
-  moveLightsComputeSrc,
-} from "../shaders/shaders";
+import { constants, moveLightsComputeSrc, clusteringComputeSrc } from "../shaders/shaders";
 
 // h in [0, 1]
 function hueToRgb(h: number) {
@@ -120,6 +115,8 @@ export class Lights {
       z: 32,
     };
 
+    console.log("Cluster size:", this.clusterSize);
+
     this.clusterSizeUniformBuffer = device.createBuffer({
       label: "Cluster size uniform buffer",
       size: 3 * Uint32Array.BYTES_PER_ELEMENT,
@@ -163,7 +160,7 @@ export class Lights {
       compute: {
         module: device.createShaderModule({
           label: "clustering.cs.wgsl",
-          code: getClusteringComputeSrc(this.clusterSize, this.maxDepth),
+          code: clusteringComputeSrc,
         }),
         entryPoint: "main",
       },
@@ -192,9 +189,22 @@ export class Lights {
     computePass.setPipeline(this.clusteringComputePipeline);
     computePass.setBindGroup(0, this.clusteringComputeBindGroup);
 
-    const { x, y, z } = getClusteringComputeWorkgroupSizes(this.clusterSize, this.maxDepth);
-    computePass.dispatchWorkgroups(x, y, z);
+    const totalClusterSize = {
+      x: constants.clusteringWorkgroupSize.x * this.clusterSize.x,
+      y: constants.clusteringWorkgroupSize.y * this.clusterSize.y,
+      z: constants.clusteringWorkgroupSize.z * this.clusterSize.z,
+    };
 
+    console.log("Total cluster size:", totalClusterSize);
+    console.log(`Canvas width: ${canvas.width}, ${canvas.height}`);
+
+    const numX = Math.ceil(canvas.width / totalClusterSize.x);
+    const numY = Math.ceil(canvas.width / totalClusterSize.y);
+    const numZ = Math.ceil((this.maxDepth - Camera.nearPlane) / totalClusterSize.z);
+
+    console.log(`Number of workgroups dispatched: X ${numX} / Y ${numY} / Z ${numZ}`);
+
+    computePass.dispatchWorkgroups(numX, numY, numZ);
     computePass.end();
   }
 

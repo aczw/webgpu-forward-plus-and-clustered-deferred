@@ -30,8 +30,12 @@ struct ClusterSize {
 
 @group(0) @binding(0) var<uniform> clusterSize: ClusterSize;
 
-// Workgroup sizes x, y, and z are determined in shaders.ts via getClusteringComputeSrc
-@compute @workgroup_size(${x}, ${y}, ${z})
+@compute
+@workgroup_size(
+    ${clusteringWorkgroupSize.x},
+    ${clusteringWorkgroupSize.y},
+    ${clusteringWorkgroupSize.z}
+)
 fn main(@builtin(global_invocation_id) global: vec3u) {
     let offsetX = global.x;
     let offsetY = global.y;

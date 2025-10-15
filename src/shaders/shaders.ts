@@ -1,9 +1,5 @@
 // CHECKITOUT: this file loads all the shaders and preprocesses them with some common code
 
-import { Camera } from "../stage/camera";
-import type { ClusterSize } from "../types";
-import { canvas } from "../renderer";
-
 import commonRaw from "./common.wgsl?raw";
 
 import naiveVertRaw from "./naive.vs.wgsl?raw";
@@ -33,6 +29,12 @@ export const constants = {
   moveLightsWorkgroupSize: 128,
 
   lightRadius: 2,
+
+  clusteringWorkgroupSize: {
+    x: 4,
+    y: 4,
+    z: 4,
+  },
 };
 
 // =================================
@@ -61,50 +63,4 @@ export const clusteredDeferredFullscreenFragSrc: string = processShaderRaw(
 );
 
 export const moveLightsComputeSrc: string = processShaderRaw(moveLightsComputeRaw);
-
-let warnOnce = true;
-
-export function getClusteringComputeWorkgroupSizes(clusterSize: ClusterSize, maxDepth: number) {
-  if (maxDepth <= Camera.nearPlane) {
-    throw Error("Max depth cannot be <= Camera.nearPlane!");
-  }
-
-  const x = Math.ceil(canvas.width / clusterSize.x);
-  const y = Math.ceil(canvas.height / clusterSize.y);
-
-  const theoreticalSizeZ = Math.ceil((maxDepth - Camera.nearPlane) / clusterSize.z);
-  const maxSizeZ = Math.floor(256 / (x * y));
-
-  let z: number;
-  if (theoreticalSizeZ > maxSizeZ) {
-    if (warnOnce) {
-      console.warn(
-        `Warning: requested workgroup Z size (${theoreticalSizeZ}) is bigger than max allowed (${maxSizeZ}) due to X * Y = ${x} * ${y} = ${
-          x * y
-        }, and Math.floor(256 / ${x * y}) = max Z = ${maxSizeZ}. Using Z = ${maxSizeZ} instead.`
-      );
-      warnOnce = false;
-    }
-
-    z = maxSizeZ;
-  } else {
-    z = theoreticalSizeZ;
-  }
-
-  return { x, y, z };
-}
-
-export function getClusteringComputeSrc(clusterSize: ClusterSize, maxDepth: number) {
-  console.log("Current cluster size:", clusterSize);
-  console.log(`Canvas height: ${canvas.height}, width: ${canvas.width}`);
-
-  const workgroupSize = getClusteringComputeWorkgroupSizes(clusterSize, maxDepth);
-
-  console.log("Using workgroup sizes ", workgroupSize);
-
-  const evaluated = eval("`" + clusteringComputeRaw.replaceAll("${", "${workgroupSize.") + "`");
-
-  console.log(`Evaluated clustering compute shader:\n\n${evaluated}`);
-
-  return evaluated;
-}
+export const clusteringComputeSrc: string = processShaderRaw(clusteringComputeRaw);
