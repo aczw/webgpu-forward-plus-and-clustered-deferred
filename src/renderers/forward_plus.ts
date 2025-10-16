@@ -23,6 +23,14 @@ export class ForwardPlusRenderer extends Renderer {
   constructor(stage: Stage) {
     super(stage);
 
+    this.depthTexture = device.createTexture({
+      label: "[F+] Depth texture",
+      size: [canvas.width, canvas.height],
+      format: "depth24plus",
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    });
+    this.depthTextureView = this.depthTexture.createView();
+
     // TODO-2: initialize layouts, pipelines, textures, etc. needed for Forward+ here
     this.sceneUniformsBindGroupLayout = device.createBindGroupLayout({
       label: "[F+] Scene uniforms bind group layout",
@@ -45,6 +53,12 @@ export class ForwardPlusRenderer extends Renderer {
           visibility: GPUShaderStage.FRAGMENT,
           buffer: { type: "read-only-storage" },
         },
+        {
+          // Dimensions uniform
+          binding: 3,
+          visibility: GPUShaderStage.FRAGMENT,
+          buffer: { type: "uniform" },
+        },
       ],
     });
 
@@ -52,27 +66,12 @@ export class ForwardPlusRenderer extends Renderer {
       label: "[F+] Scene uniforms bind group",
       layout: this.sceneUniformsBindGroupLayout,
       entries: [
-        {
-          binding: 0,
-          resource: { buffer: this.camera.uniformsBuffer },
-        },
-        {
-          binding: 1,
-          resource: { buffer: this.lights.lightSetStorageBuffer },
-        },
-        {
-          binding: 2,
-          resource: { buffer: this.lights.clusterSetStorageBuffer },
-        },
+        { binding: 0, resource: { buffer: this.camera.uniformsBuffer } },
+        { binding: 1, resource: { buffer: this.lights.lightSetStorageBuffer } },
+        { binding: 2, resource: { buffer: this.lights.clusterSetStorageBuffer } },
+        { binding: 3, resource: { buffer: this.lights.dimensionsUniformBuffer } },
       ],
     });
-
-    this.depthTexture = device.createTexture({
-      size: [canvas.width, canvas.height],
-      format: "depth24plus",
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-    this.depthTextureView = this.depthTexture.createView();
 
     this.pipeline = device.createRenderPipeline({
       layout: device.createPipelineLayout({
