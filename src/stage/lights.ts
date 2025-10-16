@@ -174,6 +174,12 @@ export class Lights {
           visibility: GPUShaderStage.COMPUTE,
           buffer: { type: "storage" },
         },
+        {
+          // Light set, we will only read from it
+          binding: 3,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: "read-only-storage" },
+        },
       ],
     });
 
@@ -192,6 +198,10 @@ export class Lights {
         {
           binding: 2,
           resource: { buffer: this.clusterSetStorageBuffer },
+        },
+        {
+          binding: 3,
+          resource: { buffer: this.lightSetStorageBuffer },
         },
       ],
     });

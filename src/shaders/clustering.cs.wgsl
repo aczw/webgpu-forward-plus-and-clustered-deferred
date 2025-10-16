@@ -24,7 +24,9 @@
 
 @group(0) @binding(0) var<uniform> camera: CameraUniforms;
 @group(0) @binding(1) var<uniform> dimensions: vec3u;
+
 @group(0) @binding(2) var<storage, read_write> clusterSet: ClusterSet;
+@group(0) @binding(3) var<storage, read> lightSet: LightSet;
 
 // Normal of the far/near plane is simply the z-axis
 const normal = vec3f(0.f, 0.f, 1.f);
