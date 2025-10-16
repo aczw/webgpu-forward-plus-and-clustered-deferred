@@ -183,7 +183,9 @@ export class Lights {
   doLightClustering(encoder: GPUCommandEncoder) {
     // TODO-2: run the light clustering compute pass(es) here
     // implementing clustering here allows for reusing the code in both Forward+ and Clustered Deferred
-    const computePass = encoder.beginComputePass();
+    const computePass = encoder.beginComputePass({
+      label: "Light clustering compute pass",
+    });
 
     // Currently, the canvas width and height never changes, even during window resize.
     // So doing this work is a little pointless. But it will come in handy if we ever
