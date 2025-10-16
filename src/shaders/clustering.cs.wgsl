@@ -22,10 +22,18 @@
 
 //     - Store the number of lights assigned to this cluster.
 
-@group(0) @binding(0) var<uniform> cameraUniforms: CameraUniforms;
+@group(0) @binding(0) var<uniform> camera: CameraUniforms;
 @group(0) @binding(1) var<uniform> dimensions: vec3u;
 
 const clusterSize = vec3u(${clusterSize.x}, ${clusterSize.y}, ${clusterSize.z});
+
+fn screenToView(screen: vec2f) -> vec4f {
+    // Convert to NDC
+    vec2f ndc = screen.xy / vec2f(dimensions.xy);
+
+    // Convert to clip space
+    vec4f clip = vec4f(vec2f(ndc.x, 1.f - ))
+}
 
 @compute
 @workgroup_size(
@@ -44,5 +52,5 @@ fn main(@builtin(global_invocation_id) offset: vec3u) {
         return;
     }
 
-    let maxScreen = (offset + vec3u(1.f)) * clusterSize;
+    let maxScreen = (offset + vec3u(1)) * clusterSize;
 }
