@@ -105,7 +105,7 @@ export class Lights {
     });
 
     // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
-    this.maxDepth = 100;
+    this.maxDepth = Camera.farPlane;
 
     this.dimensionsUniformBuffer = device.createBuffer({
       size: 3 * Uint32Array.BYTES_PER_ELEMENT,

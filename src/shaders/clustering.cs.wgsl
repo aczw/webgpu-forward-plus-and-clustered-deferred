@@ -28,11 +28,21 @@
 const clusterSize = vec3u(${clusterSize.x}, ${clusterSize.y}, ${clusterSize.z});
 
 fn screenToView(screen: vec2f) -> vec4f {
-    // Convert to NDC
-    vec2f ndc = screen.xy / vec2f(dimensions.xy);
+    // Convert from screen space to clip space
+    let clip = vec4f(
+        screen.x / f32(dimensions.x) * 2.f - 1.f,
+        1.f - (screen.y / f32(dimensions.y) * 2.f),
+        0.f,
+        1.f
+    );
 
-    // Convert to clip space
-    vec4f clip = vec4f(vec2f(ndc.x, 1.f - ))
+    // Convert from clip space to view space
+    var view = camera.inverseProjection * clip;
+
+    // Undo hardware perspective divide
+    view = view / view.w;
+
+    return view;
 }
 
 @compute
@@ -53,4 +63,7 @@ fn main(@builtin(global_invocation_id) offset: vec3u) {
     }
 
     let maxScreen = (offset + vec3u(1)) * clusterSize;
+    
+    let minView = screenToView(vec2f(minScreen.xy));
+    let maxView = screenToView(vec2f(maxScreen.xy));
 }
