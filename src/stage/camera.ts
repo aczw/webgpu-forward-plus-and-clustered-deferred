@@ -1,10 +1,10 @@
-import { Mat4, mat4, Vec3, vec3, vec4 } from "wgpu-matrix";
+import { Mat4, mat4, Vec3, vec3 } from "wgpu-matrix";
 
 import { toRadians } from "../math_util";
 import { device, canvas, fovYDegrees, aspectRatio } from "../renderer";
 
 class CameraUniforms {
-  readonly buffer = new ArrayBuffer(32 * Float32Array.BYTES_PER_ELEMENT);
+  readonly buffer = new ArrayBuffer(3 * 16 * Float32Array.BYTES_PER_ELEMENT);
   private readonly floatView = new Float32Array(this.buffer);
 
   set viewProjMat(mat: Float32Array) {
@@ -17,6 +17,12 @@ class CameraUniforms {
   set inverseProjMat(mat: Float32Array) {
     for (let i = 16; i < 32; ++i) {
       this.floatView[i] = mat[i - 16];
+    }
+  }
+
+  set viewMat(mat: Float32Array) {
+    for (let i = 32; i < 48; ++i) {
+      this.floatView[i] = mat[i - 32];
     }
   }
 }
@@ -147,6 +153,7 @@ export class Camera {
 
     // TODO-2: write to extra buffers needed for light clustering here
     this.uniforms.inverseProjMat = mat4.inverse(this.projMat);
+    this.uniforms.viewMat = viewMat;
 
     device.queue.writeBuffer(this.uniformsBuffer, 0, this.uniforms.buffer);
   }

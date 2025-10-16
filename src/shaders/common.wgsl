@@ -23,7 +23,8 @@ struct ClusterSet {
 
 struct CameraUniforms {
     viewProjection: mat4x4f,
-    inverseProjection: mat4x4f
+    inverseProjection: mat4x4f,
+    view: mat4x4f
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius
