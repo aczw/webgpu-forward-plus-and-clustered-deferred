@@ -202,6 +202,10 @@ export class Lights {
       z: constants.clusteringWorkgroupSize.z * constants.clusterSize.z,
     };
 
+    if (this.maxDepth <= Camera.nearPlane) {
+      throw Error("Max depth cannot be <= Camera.nearPlane");
+    }
+
     const numX = Math.ceil(canvas.width / totalClusterSize.x);
     const numY = Math.ceil(canvas.width / totalClusterSize.y);
     const numZ = Math.ceil((this.maxDepth - Camera.nearPlane) / totalClusterSize.z);

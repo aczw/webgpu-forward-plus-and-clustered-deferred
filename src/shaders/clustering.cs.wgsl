@@ -25,19 +25,21 @@
 @group(0) @binding(0) var<uniform> camera: CameraUniforms;
 @group(0) @binding(1) var<uniform> dimensions: vec3u;
 
+// Normal of the far/near plane is simply the z-axis
+const normal = vec3f(0.f, 0.f, 1.f);
 const clusterSize = vec3u(${clusterSize.x}, ${clusterSize.y}, ${clusterSize.z});
 
 fn screenToView(screen: vec2f) -> vec4f {
     // Convert from screen space to clip space
     let clip = vec4f(
-        screen.x / f32(dimensions.x) * 2.f - 1.f,
-        1.f - (screen.y / f32(dimensions.y) * 2.f),
-        0.f,
+        screen.xy / vec2f(dimensions.xy) * 2.f - 1.f,
+        0.1f, // This is equal to Camera.nearPlane
         1.f
     );
 
     // Convert from clip space to view space
-    var view = camera.inverseProjection * clip;
+    let inv = camera.inverseProjection;
+    var view = (inv[0] * clip.x) + (inv[1] * clip.y) + (inv[2] * clip.z) + (inv[3] * clip.w);
 
     // Undo hardware perspective divide
     view = view / view.w;
@@ -46,9 +48,6 @@ fn screenToView(screen: vec2f) -> vec4f {
 }
 
 fn linePlaneIsect(a: vec3f, b: vec3f, z: f32) -> vec3f {
-    // Normal of the far/near plane is simply the z-axis
-    let normal = vec3f(0.f, 0.f, 1.f);
-
     let aToB = b - a;
     let t = (z - dot(normal, a)) / dot(normal, aToB);
 
@@ -80,12 +79,16 @@ fn main(
     let minView : vec3f = screenToView(vec2f(minScreen.xy)).xyz;
     let maxView : vec3f = screenToView(vec2f(maxScreen.xy)).xyz;
 
-    // The near and far planes for this particular cluster i.e. not the camera
-    let viewNear = f32(minScreen.z);
-    let viewFar = f32(maxScreen.z);
+    // The near and far planes for this particular cluster i.e. not the camera.
+    // Note that all the cluster near planes are offset by Camera.nearPlane, and the
+    // maximum far plane distance is still dictated by dimensions.z.
+    let viewNear = f32(minScreen.z) + 0.1f;
+    let viewFar = min(f32(maxScreen.z), f32(depth));
 
-    let clusterNear = -viewNear * pow(viewFar / viewNear, f32(offset.z) / f32(num_workgroups.z * ${clusteringWorkgroupSize.z}));
-    let clusterFar = -viewNear * pow(viewFar / viewNear, f32(offset.z + 1) / f32(num_workgroups.z * ${clusteringWorkgroupSize.z}));
+    let totalSlices = f32(num_workgroups.z * ${clusteringWorkgroupSize.z});
+    let ratio = viewFar / viewNear;
+    let clusterNear = -viewNear * pow(ratio, f32(offset.z) / totalSlices);
+    let clusterFar = -viewNear * pow(ratio, f32(offset.z + 1) / totalSlices);
 
     // Since we've manipulated our Z values, they don't perfectly match up with our
     // pre-defined Z cluster size anymore, so we have to perform ray-plane intersections

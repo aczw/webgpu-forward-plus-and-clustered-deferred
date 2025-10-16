@@ -1,4 +1,4 @@
-import { Mat4, mat4, Vec3, vec3 } from "wgpu-matrix";
+import { Mat4, mat4, Vec3, vec3, vec4 } from "wgpu-matrix";
 
 import { toRadians } from "../math_util";
 import { device, canvas, fovYDegrees, aspectRatio } from "../renderer";
@@ -16,7 +16,7 @@ class CameraUniforms {
   // TODO-2: add extra functions to set values needed for light clustering here
   set inverseProjMat(mat: Float32Array) {
     for (let i = 16; i < 32; ++i) {
-      this.floatView[i] = mat[i];
+      this.floatView[i] = mat[i - 16];
     }
   }
 }
@@ -144,9 +144,9 @@ export class Camera {
     const viewProjMat = mat4.mul(this.projMat, viewMat);
 
     this.uniforms.viewProjMat = viewProjMat;
-    this.uniforms.inverseProjMat = mat4.inverse(this.projMat);
 
     // TODO-2: write to extra buffers needed for light clustering here
+    this.uniforms.inverseProjMat = mat4.inverse(this.projMat);
 
     device.queue.writeBuffer(this.uniformsBuffer, 0, this.uniforms.buffer);
   }
