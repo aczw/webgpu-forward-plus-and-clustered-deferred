@@ -58,6 +58,26 @@ fn linePlaneIsect(a: vec3f, b: vec3f, z: f32) -> vec3f {
     return a + (t * aToB);
 }
 
+// Assumes the sphere center is in view (camera) space.
+// Adapted from https://stackoverflow.com/questions/28343716/sphere-intersection-test-of-aabb
+fn sphereAabbIsect(center: vec3f, radius: f32, min: vec3f, max: vec3f) -> bool {
+    var sum = 0.f;
+
+    for (var dir = 0u; dir < 3u; dir++) {
+        let val : f32 = center[dir];
+
+        if (val < min[dir]) {
+            sum += (min[dir] - val) * (min[dir] - val);
+        }
+
+        if (val > max[dir]) {
+            sum += (val - max[dir]) * (val - max[dir]);
+        }
+    }
+
+    return sum <= (radius * radius);
+}
+
 @compute
 @workgroup_size(
     ${clusteringWorkgroupSize.x},
@@ -105,8 +125,8 @@ fn main(
     let maxPointNear = linePlaneIsect(vec3f(), maxView, clusterNear);
     let maxPointFar = linePlaneIsect(vec3f(), maxView, clusterFar);
 
-    let min = min(min(minPointNear, minPointFar), min(maxPointNear, maxPointFar));
-    let max = max(max(minPointNear, minPointFar), max(maxPointNear, maxPointFar));
+    let min : vec3f = min(min(minPointNear, minPointFar), min(maxPointNear, maxPointFar));
+    let max : vec3f = max(max(minPointNear, minPointFar), max(maxPointNear, maxPointFar));
 
     // Calculate global index
     let workgroupIndex = 
@@ -115,5 +135,24 @@ fn main(
         workgroup_id.z * num_workgroups.x * num_workgroups.y;
     let globalInvocationIndex = workgroupIndex * threadsPerWorkgroup + local_invocation_index;
 
-    clusterSet.clusters[globalInvocationIndex].numLights = globalInvocationIndex;
+    // Keep track of how many lights this cluster stores. Stop early
+    // if we reach the maximum amount
+    var clusterLightCount = 0u;
+
+    // For every light, check if its volume intersects with this cluster's AABB
+    for (var lightIndex = 0u; lightIndex < lightSet.numLights; lightIndex++) {
+        let center = lightSet.lights[lightIndex].pos;
+        let viewCenter = camera.view * vec4f(center, 1.f);
+
+        if (sphereAabbIsect(viewCenter.xyz, ${lightRadius}, min, max)) {
+            clusterSet.clusters[globalInvocationIndex].lights[clusterLightCount] = lightIndex;
+            clusterLightCount++;
+
+            if (clusterLightCount == ${maxLightsInCluster}) {
+                break;
+            }
+        }
+    }
+
+    clusterSet.clusters[globalInvocationIndex].numLights = clusterLightCount;
 }
