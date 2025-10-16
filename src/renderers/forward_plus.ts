@@ -12,28 +12,78 @@ import { naiveVertSrc, forwardPlusFragSrc, constants } from "../shaders/shaders"
 import { Stage } from "../stage/stage";
 
 export class ForwardPlusRenderer extends Renderer {
-  sceneUniformsBindGroupLayout: GPUBindGroupLayout;
-  sceneUniformsBindGroup: GPUBindGroup;
+  depthPipeline: GPURenderPipeline;
+  bglForDepth: GPUBindGroupLayout;
+  bgForDepth: GPUBindGroup;
+  depthPassDepthTexture: GPUTexture;
+  depthPassDepthTextureView: GPUTextureView;
 
-  depthTexture: GPUTexture;
-  depthTextureView: GPUTextureView;
-
-  pipeline: GPURenderPipeline;
+  renderPipeline: GPURenderPipeline;
+  bglForRender: GPUBindGroupLayout;
+  bgForRender: GPUBindGroup;
+  renderPassDepthTexture: GPUTexture;
 
   constructor(stage: Stage) {
     super(stage);
 
-    this.depthTexture = device.createTexture({
-      label: "[F+] Depth texture",
+    this.depthPassDepthTexture = device.createTexture({
+      label: "[F+] Depth pass depth texture",
       size: [canvas.width, canvas.height],
       format: "depth24plus",
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     });
-    this.depthTextureView = this.depthTexture.createView();
 
-    // TODO-2: initialize layouts, pipelines, textures, etc. needed for Forward+ here
-    this.sceneUniformsBindGroupLayout = device.createBindGroupLayout({
-      label: "[F+] Scene uniforms bind group layout",
+    // Will be written to during depth pass, and read from during render pass
+    this.depthPassDepthTextureView = this.depthPassDepthTexture.createView();
+
+    this.bglForDepth = device.createBindGroupLayout({
+      label: "[F+] Bind group layout for depth pipeline",
+      entries: [
+        {
+          // Camera uniforms
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX,
+          buffer: { type: "uniform" },
+        },
+      ],
+    });
+
+    this.bgForDepth = device.createBindGroup({
+      label: "[F+] Bind group for depth pipeline",
+      layout: this.bglForDepth,
+      entries: [{ binding: 0, resource: { buffer: this.camera.uniformsBuffer } }],
+    });
+
+    this.depthPipeline = device.createRenderPipeline({
+      label: "[F+] Depth pipeline",
+      layout: device.createPipelineLayout({
+        label: "[F+] Depth pipeline layout",
+        bindGroupLayouts: [this.bglForDepth, modelBindGroupLayout, materialBindGroupLayout],
+      }),
+      depthStencil: {
+        depthWriteEnabled: true,
+        depthCompare: "less",
+        format: "depth24plus",
+      },
+      vertex: {
+        module: device.createShaderModule({
+          label: "[F+] Vertex shader, same as naive",
+          code: naiveVertSrc,
+        }),
+        buffers: [vertexBufferLayout],
+      },
+    });
+
+    // Will not be read from, only written to for depth test
+    this.renderPassDepthTexture = device.createTexture({
+      label: "[F+] Render pass depth texture",
+      size: [canvas.width, canvas.height],
+      format: "depth24plus",
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+
+    this.bglForRender = device.createBindGroupLayout({
+      label: "[F+] Bind group layout for render pipeline",
       entries: [
         {
           // Camera uniforms
@@ -59,28 +109,44 @@ export class ForwardPlusRenderer extends Renderer {
           visibility: GPUShaderStage.FRAGMENT,
           buffer: { type: "uniform" },
         },
+        {
+          // Depth texture
+          binding: 4,
+          visibility: GPUShaderStage.FRAGMENT,
+          texture: { sampleType: "unfilterable-float" },
+        },
+        {
+          // Depth sampler
+          binding: 5,
+          visibility: GPUShaderStage.FRAGMENT,
+          sampler: { type: "non-filtering" },
+        },
       ],
     });
 
-    this.sceneUniformsBindGroup = device.createBindGroup({
-      label: "[F+] Scene uniforms bind group",
-      layout: this.sceneUniformsBindGroupLayout,
+    this.bgForRender = device.createBindGroup({
+      label: "[F+] Bind group for render pipeline",
+      layout: this.bglForRender,
       entries: [
         { binding: 0, resource: { buffer: this.camera.uniformsBuffer } },
         { binding: 1, resource: { buffer: this.lights.lightSetStorageBuffer } },
         { binding: 2, resource: { buffer: this.lights.clusterSetStorageBuffer } },
         { binding: 3, resource: { buffer: this.lights.dimensionsUniformBuffer } },
+        { binding: 4, resource: this.depthPassDepthTextureView },
+        {
+          binding: 5,
+          resource: device.createSampler({
+            label: "[F+] Depth texture sampler",
+          }),
+        },
       ],
     });
 
-    this.pipeline = device.createRenderPipeline({
+    this.renderPipeline = device.createRenderPipeline({
+      label: "[F+] Render pipeline",
       layout: device.createPipelineLayout({
-        label: "[F+] Pipeline layout",
-        bindGroupLayouts: [
-          this.sceneUniformsBindGroupLayout,
-          modelBindGroupLayout,
-          materialBindGroupLayout,
-        ],
+        label: "[F+] Render pipeline layout",
+        bindGroupLayouts: [this.bglForRender, modelBindGroupLayout, materialBindGroupLayout],
       }),
       depthStencil: {
         depthWriteEnabled: true,
@@ -115,43 +181,75 @@ export class ForwardPlusRenderer extends Renderer {
     const encoder = device.createCommandEncoder({
       label: "[F+] Command encoder",
     });
-    const canvasTextureView = context.getCurrentTexture().createView();
 
     this.lights.doLightClustering(encoder);
 
-    const renderPass = encoder.beginRenderPass({
-      label: "[F+] Render pass",
-      colorAttachments: [
-        {
-          view: canvasTextureView,
-          clearValue: [0, 0, 0, 0],
-          loadOp: "clear",
-          storeOp: "store",
+    {
+      const depthPass = encoder.beginRenderPass({
+        label: "[F+] Depth pass",
+        colorAttachments: [],
+        depthStencilAttachment: {
+          view: this.depthPassDepthTextureView,
+          depthClearValue: 1.0,
+          depthLoadOp: "clear",
+          depthStoreOp: "store",
         },
-      ],
-      depthStencilAttachment: {
-        view: this.depthTextureView,
-        depthClearValue: 1.0,
-        depthLoadOp: "clear",
-        depthStoreOp: "store",
-      },
-    });
-    renderPass.setPipeline(this.pipeline);
+      });
 
-    renderPass.setBindGroup(constants.bindGroup_scene, this.sceneUniformsBindGroup);
+      depthPass.setPipeline(this.depthPipeline);
+      depthPass.setBindGroup(constants.bindGroup_scene, this.bgForDepth);
 
-    this.scene.iterate(
-      (node) => renderPass.setBindGroup(constants.bindGroup_model, node.modelBindGroup),
-      (material) =>
-        renderPass.setBindGroup(constants.bindGroup_material, material.materialBindGroup),
-      (primitive) => {
-        renderPass.setVertexBuffer(0, primitive.vertexBuffer);
-        renderPass.setIndexBuffer(primitive.indexBuffer, "uint32");
-        renderPass.drawIndexed(primitive.numIndices);
-      }
-    );
+      this.scene.iterate(
+        (node) => depthPass.setBindGroup(constants.bindGroup_model, node.modelBindGroup),
+        (material) =>
+          depthPass.setBindGroup(constants.bindGroup_material, material.materialBindGroup),
+        (primitive) => {
+          depthPass.setVertexBuffer(0, primitive.vertexBuffer);
+          depthPass.setIndexBuffer(primitive.indexBuffer, "uint32");
+          depthPass.drawIndexed(primitive.numIndices);
+        }
+      );
 
-    renderPass.end();
+      depthPass.end();
+    }
+
+    {
+      const renderPass = encoder.beginRenderPass({
+        label: "[F+] Render pass",
+        colorAttachments: [
+          {
+            view: context.getCurrentTexture().createView(),
+            clearValue: [0, 0, 0, 0],
+            loadOp: "clear",
+            storeOp: "store",
+          },
+        ],
+        depthStencilAttachment: {
+          view: this.renderPassDepthTexture.createView(),
+          depthClearValue: 1.0,
+          depthLoadOp: "clear",
+          depthStoreOp: "store",
+          //   depthReadOnly: true,
+        },
+      });
+
+      renderPass.setPipeline(this.renderPipeline);
+      renderPass.setBindGroup(constants.bindGroup_scene, this.bgForRender);
+
+      this.scene.iterate(
+        (node) => renderPass.setBindGroup(constants.bindGroup_model, node.modelBindGroup),
+        (material) =>
+          renderPass.setBindGroup(constants.bindGroup_material, material.materialBindGroup),
+        (primitive) => {
+          renderPass.setVertexBuffer(0, primitive.vertexBuffer);
+          renderPass.setIndexBuffer(primitive.indexBuffer, "uint32");
+          renderPass.drawIndexed(primitive.numIndices);
+        }
+      );
+
+      renderPass.end();
+    }
+
     device.queue.submit([encoder.finish()]);
   }
 }
