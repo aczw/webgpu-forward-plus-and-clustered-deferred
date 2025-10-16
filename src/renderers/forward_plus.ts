@@ -39,6 +39,12 @@ export class ForwardPlusRenderer extends Renderer {
           visibility: GPUShaderStage.FRAGMENT,
           buffer: { type: "read-only-storage" },
         },
+        {
+          // Cluster set
+          binding: 2,
+          visibility: GPUShaderStage.FRAGMENT,
+          buffer: { type: "read-only-storage" },
+        },
       ],
     });
 
@@ -53,6 +59,10 @@ export class ForwardPlusRenderer extends Renderer {
         {
           binding: 1,
           resource: { buffer: this.lights.lightSetStorageBuffer },
+        },
+        {
+          binding: 2,
+          resource: { buffer: this.lights.clusterSetStorageBuffer },
         },
       ],
     });
