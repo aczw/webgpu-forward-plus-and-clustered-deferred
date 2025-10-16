@@ -37,6 +37,8 @@ export class Lights {
   clusteringComputeBindGroup: GPUBindGroup;
   clusteringComputePipeline: GPUComputePipeline;
 
+  numWorkgroups: { x: number; y: number; z: number };
+
   constructor(camera: Camera) {
     this.camera = camera;
 
@@ -107,6 +109,10 @@ export class Lights {
     // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
     this.maxDepth = Camera.farPlane;
 
+    if (this.maxDepth <= Camera.nearPlane) {
+      throw Error("Max depth cannot be <= Camera.nearPlane");
+    }
+
     this.dimensionsUniformBuffer = device.createBuffer({
       size: 3 * Uint32Array.BYTES_PER_ELEMENT,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -164,6 +170,12 @@ export class Lights {
         entryPoint: "main",
       },
     });
+
+    this.numWorkgroups = {
+      x: Math.ceil(canvas.width / constants.totalClusterSize.x),
+      y: Math.ceil(canvas.width / constants.totalClusterSize.y),
+      z: Math.ceil((this.maxDepth - Camera.nearPlane) / constants.totalClusterSize.z),
+    };
   }
 
   private populateLightsBuffer() {
@@ -196,28 +208,18 @@ export class Lights {
     computePass.setPipeline(this.clusteringComputePipeline);
     computePass.setBindGroup(0, this.clusteringComputeBindGroup);
 
-    const totalClusterSize = {
-      x: constants.clusteringWorkgroupSize.x * constants.clusterSize.x,
-      y: constants.clusteringWorkgroupSize.y * constants.clusterSize.y,
-      z: constants.clusteringWorkgroupSize.z * constants.clusterSize.z,
-    };
-
-    if (this.maxDepth <= Camera.nearPlane) {
-      throw Error("Max depth cannot be <= Camera.nearPlane");
-    }
-
-    const numX = Math.ceil(canvas.width / totalClusterSize.x);
-    const numY = Math.ceil(canvas.width / totalClusterSize.y);
-    const numZ = Math.ceil((this.maxDepth - Camera.nearPlane) / totalClusterSize.z);
-
     console.log(`Stats:
 - Dimensions: X ${dimensions[0]} / Y ${dimensions[1]} / Z ${dimensions[2]}
 - Cluster size: X ${constants.clusterSize.x} / Y ${constants.clusterSize.y} / Z ${constants.clusterSize.z}
 - Workgroup size: X ${constants.clusteringWorkgroupSize.x} / Y ${constants.clusteringWorkgroupSize.y} / Z ${constants.clusteringWorkgroupSize.z}
-- Total cluster size: X ${totalClusterSize.x} / Y ${totalClusterSize.y} / Z ${totalClusterSize.z}
-- Number of workgroups dispatched: X ${numX} / Y ${numY} / Z ${numZ}`);
+- Total cluster size: X ${constants.totalClusterSize.x} / Y ${constants.totalClusterSize.y} / Z ${constants.totalClusterSize.z}
+- Number of workgroups dispatched: X ${this.numWorkgroups.x} / Y ${this.numWorkgroups.y} / Z ${this.numWorkgroups.z}`);
 
-    computePass.dispatchWorkgroups(numX, numY, numZ);
+    computePass.dispatchWorkgroups(
+      this.numWorkgroups.x,
+      this.numWorkgroups.y,
+      this.numWorkgroups.z
+    );
     computePass.end();
   }
 

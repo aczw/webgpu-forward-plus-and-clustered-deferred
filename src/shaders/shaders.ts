@@ -18,6 +18,17 @@ import clusteringComputeRaw from "./clustering.cs.wgsl?raw";
 // =================================
 
 // CHECKITOUT: feel free to add more constants here and to refer to them in your shader code
+const clusterSize = {
+  x: 128, // Screen pixels
+  y: 128, // Screen pixels
+  z: 32,
+};
+
+const clusteringWorkgroupSize = {
+  x: 4,
+  y: 4,
+  z: 4,
+};
 
 // Note that these are declared in a somewhat roundabout way because otherwise minification will drop variables
 // that are unused in host side code.
@@ -30,16 +41,14 @@ export const constants = {
 
   lightRadius: 2,
 
-  clusterSize: {
-    x: 128, // Screen pixels
-    y: 128, // Screen pixels
-    z: 32,
-  },
+  clusterSize,
 
-  clusteringWorkgroupSize: {
-    x: 4,
-    y: 4,
-    z: 4,
+  clusteringWorkgroupSize,
+
+  totalClusterSize: {
+    x: clusteringWorkgroupSize.x * clusterSize.x,
+    y: clusteringWorkgroupSize.y * clusterSize.y,
+    z: clusteringWorkgroupSize.z * clusterSize.z,
   },
 };
 
