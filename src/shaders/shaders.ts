@@ -50,6 +50,9 @@ export const constants = {
     y: clusteringWorkgroupSize.y * clusterSize.y,
     z: clusteringWorkgroupSize.z * clusterSize.z,
   },
+
+  // This way, the 32nd value can be the number of lights
+  maxLightsInCluster: 31,
 };
 
 // =================================

@@ -39,6 +39,10 @@ export class Lights {
 
   numWorkgroups: { x: number; y: number; z: number };
 
+  static readonly clusterByteSize = constants.maxLightsInCluster * 4 + 4;
+
+  clusterSetStorageBuffer: GPUBuffer;
+
   constructor(camera: Camera) {
     this.camera = camera;
 
@@ -123,6 +127,32 @@ export class Lights {
     console.log(`Dimensions: X ${dimensions[0]} / Y ${dimensions[1]} / Z ${dimensions[2]}`);
     console.log("Cluster size:", constants.clusterSize);
 
+    this.numWorkgroups = {
+      x: Math.ceil(canvas.width / constants.totalClusterSize.x),
+      y: Math.ceil(canvas.height / constants.totalClusterSize.y),
+      z: Math.ceil((this.maxDepth - Camera.nearPlane) / constants.totalClusterSize.z),
+    };
+
+    // Each workgroup also contains a certain number of clusters
+    const totalClusters =
+      this.numWorkgroups.x *
+      constants.clusteringWorkgroupSize.x *
+      this.numWorkgroups.y *
+      constants.clusteringWorkgroupSize.y *
+      this.numWorkgroups.z *
+      constants.clusteringWorkgroupSize.z;
+
+    console.log("Total clusters:", totalClusters);
+
+    this.clusterSetStorageBuffer = device.createBuffer({
+      label: "Cluster set storage buffer",
+      size: 4 + totalClusters * Lights.clusterByteSize,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(this.clusterSetStorageBuffer, 0, new Uint32Array([totalClusters]));
+
+    console.log("Cluster set storage size in bytes:", 4 + totalClusters * Lights.clusterByteSize);
+
     this.clusteringComputeBindGroupLayout = device.createBindGroupLayout({
       label: "Clustering compute bind group layout",
       entries: [
@@ -138,6 +168,12 @@ export class Lights {
           visibility: GPUShaderStage.COMPUTE,
           buffer: { type: "uniform" },
         },
+        {
+          // Cluster set, compute shader will write to it
+          binding: 2,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: "storage" },
+        },
       ],
     });
 
@@ -152,6 +188,10 @@ export class Lights {
         {
           binding: 1,
           resource: { buffer: this.dimensionsUniformBuffer },
+        },
+        {
+          binding: 2,
+          resource: { buffer: this.clusterSetStorageBuffer },
         },
       ],
     });
@@ -170,12 +210,6 @@ export class Lights {
         entryPoint: "main",
       },
     });
-
-    this.numWorkgroups = {
-      x: Math.ceil(canvas.width / constants.totalClusterSize.x),
-      y: Math.ceil(canvas.width / constants.totalClusterSize.y),
-      z: Math.ceil((this.maxDepth - Camera.nearPlane) / constants.totalClusterSize.z),
-    };
   }
 
   private populateLightsBuffer() {

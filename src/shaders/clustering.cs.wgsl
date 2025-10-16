@@ -24,10 +24,12 @@
 
 @group(0) @binding(0) var<uniform> camera: CameraUniforms;
 @group(0) @binding(1) var<uniform> dimensions: vec3u;
+@group(0) @binding(2) var<storage, read_write> clusterSet: ClusterSet;
 
 // Normal of the far/near plane is simply the z-axis
 const normal = vec3f(0.f, 0.f, 1.f);
 const clusterSize = vec3u(${clusterSize.x}, ${clusterSize.y}, ${clusterSize.z});
+const threadsPerWorkgroup = ${clusteringWorkgroupSize.x} * ${clusteringWorkgroupSize.y} * ${clusteringWorkgroupSize.z};
 
 fn screenToView(screen: vec2f) -> vec4f {
     // Convert from screen space to clip space
@@ -61,8 +63,10 @@ fn linePlaneIsect(a: vec3f, b: vec3f, z: f32) -> vec3f {
     ${clusteringWorkgroupSize.z}
 )
 fn main(
+    @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(global_invocation_id) offset: vec3u,
-    @builtin(num_workgroups) num_workgroups: vec3u
+    @builtin(num_workgroups) num_workgroups: vec3u,
+    @builtin(local_invocation_index) local_invocation_index: u32
 ) {
     let width = dimensions.x;
     let height = dimensions.y;
@@ -70,9 +74,10 @@ fn main(
 
     let minScreen = offset * clusterSize;
 
-    if (minScreen.x >= width || minScreen.y >= height || minScreen.z > depth) {
-        return;
-    }
+    // if (minScreen.x >= width || minScreen.y >= height || minScreen.z > depth) {
+    //     clusterSet.clusters[globalInvocationIndex].numLights = 99999;
+    //     return;
+    // }
 
     let maxScreen = (offset + vec3u(1)) * clusterSize;
     
@@ -100,4 +105,13 @@ fn main(
 
     let min = min(min(minPointNear, minPointFar), min(maxPointNear, maxPointFar));
     let max = max(max(minPointNear, minPointFar), max(maxPointNear, maxPointFar));
+
+    // Calculate global index
+    let workgroupIndex = 
+        workgroup_id.x +
+        workgroup_id.y * num_workgroups.x +
+        workgroup_id.z * num_workgroups.x * num_workgroups.y;
+    let globalInvocationIndex = workgroupIndex * threadsPerWorkgroup + local_invocation_index;
+
+    clusterSet.clusters[globalInvocationIndex].numLights = globalInvocationIndex;
 }
