@@ -1,3 +1,6 @@
+> [!NOTE]
+> Please visit [charleszw.com/projects/webgpu-clustered](https://charleszw.com/projects/webgpu-clustered) for the most up to date version of this project write-up! It's been significantly edited and expanded with more implementation details and performance benchmarks :)
+
 **University of Pennsylvania, CIS 5650: GPU Programming and Architecture, Project 4**
 
 - Charles Wang
